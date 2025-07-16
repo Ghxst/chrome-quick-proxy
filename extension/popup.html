@@ -62,6 +62,27 @@
     <button id="save">Save</button>
     <button id="clear">Clear</button>
 
+    <button id="harBtn">Import HAR cookies</button>
+
+    <input id="harFile" type="file" accept=".har,application/json" style="display:none" />
+
+    <div id="harControls" style="display:none;margin-top:12px">
+        <label>
+            HAR entry
+            <select id="entrySelect" style="width:100%;margin-bottom:8px"></select>
+        </label>
+
+        <label>
+            Cookie source
+            <select id="sideSelect" style="width:100%;margin-bottom:12px">
+                <option value="request">Request → cookies[]</option>
+                <option value="response">Response → cookies[]</option>
+            </select>
+        </label>
+
+        <button id="importCookies" style="width:100%">Add cookies to Chrome</button>
+    </div>
+
     <script src="popup.js"></script>
 </body>
 
