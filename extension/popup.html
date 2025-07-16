@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Proxy / WebRTC Settings</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            padding: 16px;
+            min-width: 260px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 6px;
+            margin-top: 2px;
+            margin-bottom: 12px;
+            box-sizing: border-box;
+        }
+
+        button {
+            width: 48%;
+            padding: 8px;
+            font-size: 14px;
+            margin-right: 4%;
+        }
+    </style>
+</head>
+
+<body>
+    <label>Host
+        <input id="host" type="text" placeholder="proxy.example.com" />
+    </label>
+    <label>Port
+        <input id="port" type="number" placeholder="8080" />
+    </label>
+    <label>User
+        <input id="user" type="text" placeholder="username" />
+    </label>
+    <label>Pass
+        <input id="pass" type="password" placeholder="password" />
+    </label>
+
+    <label>WebRTC policy
+        <select id="webrtc">
+            <option value="default">Default (Chrome’s normal behavior)</option>
+            <option value="default_public_interface_only">Public IP only</option>
+            <option value="default_public_and_private_interfaces">Public + private IPs</option>
+            <option value="disable_non_proxied_udp">Disable non-proxied UDP (leak-safe)</option>
+        </select>
+    </label>
+
+    <button id="save">Save</button>
+    <button id="clear">Clear</button>
+
+    <script src="popup.js"></script>
+</body>
+
+</html>

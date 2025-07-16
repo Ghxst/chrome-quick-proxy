@@ -1,0 +1,23 @@
+{
+    "name": "Quick Proxy Auth",
+    "description": "Set (or clear) an authenticated proxy from the toolbar.",
+    "version": "1.0.0",
+    "manifest_version": 3,
+    "permissions": [
+        "proxy",
+        "privacy",
+        "storage",
+        "webRequest",
+        "webRequestAuthProvider"
+    ],
+    "host_permissions": [
+        "<all_urls>"
+    ],
+    "action": {
+        "default_title": "Proxy Settings",
+        "default_popup": "popup.html"
+    },
+    "background": {
+        "service_worker": "background.js"
+    }
+}
