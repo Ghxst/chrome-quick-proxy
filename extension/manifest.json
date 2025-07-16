@@ -1,6 +1,6 @@
 {
-    "name": "Quick Proxy Auth",
-    "description": "Set (or clear) an authenticated proxy from the toolbar.",
+    "name": "Quick Proxy",
+    "description": "Manage proxy, webrtc and cookies from the toolbar.",
     "version": "1.0.0",
     "manifest_version": 3,
     "permissions": [
