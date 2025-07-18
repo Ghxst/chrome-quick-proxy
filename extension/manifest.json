@@ -1,7 +1,7 @@
 {
-    "name": "Quick Proxy",
-    "description": "Manage proxy, webrtc and cookies from the toolbar.",
-    "version": "1.0.0",
+    "name": "Quick Proxy Auth",
+    "description": "Set an authenticated proxy, control WebRTC, and import cookies.",
+    "version": "1.2.0",
     "manifest_version": 3,
     "permissions": [
         "proxy",
