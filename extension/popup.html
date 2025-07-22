@@ -35,7 +35,9 @@
         }
 
         #harBtn,
-        #sessionBtn {
+        #sessionBtn,
+        #exportBtn,
+        #importJsonBtn {
             width: 100%;
             margin-bottom: 12px
         }
@@ -75,6 +77,9 @@
     </div>
 
     <button id="sessionBtn">Load session data (JSON)</button>
+    <button id="exportBtn">Export all cookies (JSON)</button>
+    <button id="importJsonBtn">Import cookies (JSON)</button>
+    <input id="importJsonFile" type="file" accept="application/json" style="display:none">
 
     <button id="save">Save</button><button id="clear">Clear</button>
 
