@@ -37,7 +37,8 @@
         #harBtn,
         #sessionBtn,
         #exportBtn,
-        #importJsonBtn {
+        #importJsonBtn,
+        #importJsonNoneBtn {
             width: 100%;
             margin-bottom: 12px
         }
@@ -49,17 +50,17 @@
 </head>
 
 <body>
-    <label>Host <input id="host" type="text" placeholder="proxy.example.com"></label>
-    <label>Port <input id="port" type="number" placeholder="8080"></label>
-    <label>User <input id="user" type="text" placeholder="username"></label>
-    <label>Pass <input id="pass" type="password" placeholder="password"></label>
+    <label>Host <input id="host" type="text"></label>
+    <label>Port <input id="port" type="number"></label>
+    <label>User <input id="user" type="text"></label>
+    <label>Pass <input id="pass" type="password"></label>
 
     <label>WebRTC policy
         <select id="webrtc">
             <option value="default">Default</option>
-            <option value="default_public_interface_only">Public IP only</option>
+            <option value="default_public_interface_only">Public IP only</option>
             <option value="default_public_and_private_interfaces">Public+private</option>
-            <option value="disable_non_proxied_udp">Disable non‑proxied UDP</option>
+            <option value="disable_non_proxied_udp">Disable non‑proxied UDP</option>
         </select>
     </label>
 
@@ -79,6 +80,7 @@
     <button id="sessionBtn">Load session data (JSON)</button>
     <button id="exportBtn">Export all cookies (JSON)</button>
     <button id="importJsonBtn">Import cookies (JSON)</button>
+    <button id="importJsonNoneBtn">Import cookies (SameSite None)</button>
     <input id="importJsonFile" type="file" accept="application/json" style="display:none">
 
     <button id="save">Save</button><button id="clear">Clear</button>
