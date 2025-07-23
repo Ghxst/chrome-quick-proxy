@@ -1,4 +1,5 @@
 {
+    "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqGwjF3jBbVDTuAAiGiS38Nvo9PNoj3vyOaXVAoKBNZqQc/3XEa4WdtY4ZPGV/eCO4OHQm+MOVtWyAJ9ttArOig8nacaHi7j5JSIe3MviNK6e8RXjQhHmOdPZUzz+SvVyNIt5IDtN646DGN8dhWM9+AJG9qS55QivBFqsbcLuZ67TSEG1G+t7mZgDuMe9nuE0ieQeXyRoC8D/U8OegdCVUK4/zs3Z1JMFbMgVNSlNjxNuJzC+yXu/SO1BwcxrCVjRvZCynW4/46PvO6GRXrjuIhyri5QvzdisfjpH+3j3tidqWM2dZR4bf7nv4YP+XnHMncRU8V9j8TQrGqa+Rm4A+wIDAQAB",
     "name": "Quick Proxy Auth",
     "description": "Set an authenticated proxy, control WebRTC, and import cookies.",
     "version": "1.2.0",
@@ -10,6 +11,7 @@
         "privacy",
         "storage",
         "webRequest",
+        "webRequestBlocking",
         "webRequestAuthProvider"
     ],
     "host_permissions": [

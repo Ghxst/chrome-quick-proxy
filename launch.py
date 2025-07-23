@@ -32,7 +32,8 @@ def build_flags(insecure=False):
         f"--user-data-dir={t}",
         f"--load-extension={p}",
         "--no-first-run",
-        f"--disable-features={','.join(feats)}"
+        f"--disable-features={','.join(feats)}",
+        "--allowlisted-extension-id=foakpmknkkocehoeoafpnejjdhngfldf",
     ]
 
     if insecure:
