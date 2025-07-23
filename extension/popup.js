@@ -8,16 +8,15 @@ const setDot = (colour) =>
 
 /* ── IP lookup ─────────────────────────────────────────────────────── */
 async function updateIP() {
-    setDot("bg-gray-400");                       // pending
+    setDot("bg-gray-400");
     try {
-        const txt = await fetch("https://cloudflare-dns.com/cdn-cgi/trace")
-            .then(r => r.text());
+        const txt = await fetch("https://cloudflare-dns.com/cdn-cgi/trace").then(r => r.text());
         const kv = Object.fromEntries(txt.trim().split("\n").map(l => l.split("=")));
         $("ipInfo").textContent = `IP: ${kv.ip || "?"} | LOC: ${kv.loc || "?"}`;
-        setDot("bg-green-500");                    // ok
+        setDot("bg-green-500");
     } catch {
         $("ipInfo").textContent = "IP: ?";
-        setDot("bg-red-500");                      // fail
+        setDot("bg-red-500");
     }
 }
 
@@ -48,10 +47,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     customBtn.onclick = () => activate("custom");
     presetBtn.onclick = () => activate("preset");
 
-    /* load presets.json, if present */
+    /* presets.json (optional) */
     try {
         const presets = await fetch(chrome.runtime.getURL("presets.json")).then(r => r.json());
-
         Object.keys(presets).forEach((v) => {
             const o = document.createElement("option");
             o.value = o.textContent = v;
@@ -87,7 +85,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     $("clearBtn").addEventListener("click", () => queueUpdate(500));
 });
 
-/* ── helpers for cookie imports ─────────────────────────────────────── */
+/* ── cookie helpers ────────────────────────────────────────────────── */
 const setCookie = (o) =>
     new Promise((res, rej) =>
         chrome.cookies.set(o, () =>
@@ -96,50 +94,43 @@ const setCookie = (o) =>
     );
 
 const toEpoch = (val) => {
-    if (val == null) return undefined;                 // session cookie
+    if (val == null) return undefined;                 // session
     if (typeof val === "number" && isFinite(val))
         return val > 0 ? val : undefined;               // 0 / -1 → session
     const t = Date.parse(val);
-    return isFinite(t) ? t / 1000 : undefined;        // seconds
+    return isFinite(t) ? t / 1000 : undefined;
 };
 const nowSec = () => (Date.now() / 1000) | 0;
 
-/* SameSite mapper: HTTP-style ⇆ Chrome (CDP) */
+/* SameSite mapper (HTTP style → Chrome) */
 function normalizeSameSite(s) {
     if (s == null) return undefined;
 
     if (typeof s === "number") {
-        // 0 DEFAULT, 1 LAX, 2 STRICT, 3 NONE  (common proto enum ordering)
         switch (s) {
             case 1: return "lax";
             case 2: return "strict";
             case 3: return "no_restriction";
-            case 0:
             default: return "unspecified";
         }
     }
-
-    if (typeof s === "string") {
-        const v = s.trim().toLowerCase();
-        if (["lax", "strict", "no_restriction", "unspecified"].includes(v)) return v;
-        if (v === "none") return "no_restriction";
-        if (v === "default") return "unspecified";
-        // Accept raw header tokens too
-        if (v === "lax") return "lax";
-        if (v === "strict") return "strict";
-    }
+    const v = String(s).trim().toLowerCase();
+    if (["lax", "strict", "no_restriction", "unspecified"].includes(v)) return v;
+    if (v === "none") return "no_restriction";
+    if (v === "default") return "unspecified";
     return "unspecified";
 }
 
 /**
- * Import an array of cookie objects with verbose logging.
- * Handles both HTTP-style and CDP-style SameSite representations.
- * @returns [okCount, expiredSkipped[], failed[]]
+ * Import an array of cookie objects with FULL diagnostics.
+ * @param {Array} jar
+ * @param {string|undefined} ss  override SameSite ("no_restriction" for cross)
  */
 async function importJar(jar, ss, baseUrl, ignoreExp = false) {
+    const mode = ss === "no_restriction" ? "cross-site" : "standard";
     let ok = 0, failed = [], expired = [];
 
-    console.groupCollapsed(`[Import] ${jar.length} cookies → ${baseUrl}`);
+    console.groupCollapsed(`[Import][${mode}] ${jar.length} cookies → ${baseUrl}`);
     for (const c of jar) {
         const forceSecure = ss === "no_restriction";
         const isSecure = forceSecure ? true : !!c.secure;
@@ -149,42 +140,42 @@ async function importJar(jar, ss, baseUrl, ignoreExp = false) {
 
         const exp = toEpoch(c.expirationDate ?? c.expires);
         if (!ignoreExp && exp !== undefined && exp <= nowSec()) {
-            console.info("⏰ expired — skip", c.name, { exp, src: c });
+            console.info("⏰ expired — skip", c.name);
             expired.push(c.name);
             continue;
         }
 
-        /* map SameSite */
         const mappedSS = ss ?? normalizeSameSite(c.sameSite);
 
-        const obj = {
+        const objTemplate = {
             url,
             name: c.name,
             value: c.value,
             path: c.path || "/",
             secure: isSecure,
             httpOnly: !!c.httpOnly,
+            sameSite: mappedSS
         };
-        if (c.domain) obj.domain = c.domain;
-        if (!ignoreExp && exp !== undefined) obj.expirationDate = exp;
-        if (mappedSS !== undefined) obj.sameSite = mappedSS;
+        if (c.domain) objTemplate.domain = c.domain;
+        if (!ignoreExp && exp !== undefined) objTemplate.expirationDate = exp;
 
+        /* attempt #1 — as is */
         try {
-            console.debug("🔄 setCookie", obj);
-            await setCookie(obj);
+            console.debug("🔄 setCookie (full)", objTemplate);
+            await setCookie(objTemplate);
             ok++;
             console.debug("✅ success", c.name);
             continue;
         } catch (err) {
-            console.warn("⚠️  failed, will retry host-only", c.name, err?.message || err);
+            console.warn("⚠️  failed", c.name, err?.message || err);
         }
 
-        /* retry host-only (domain removed) */
+        /* attempt #2 — host-only */
         if (c.domain) {
-            const { domain, ...hostOnly } = obj;
+            const { domain, ...hostObj } = objTemplate;
             try {
-                console.debug("↻ retry host-only", hostOnly);
-                await setCookie(hostOnly);
+                console.debug("↻ retry host-only", hostObj);
+                await setCookie(hostObj);
                 ok++;
                 console.debug("✅ host-only success", c.name);
                 continue;
@@ -195,11 +186,11 @@ async function importJar(jar, ss, baseUrl, ignoreExp = false) {
         failed.push(c.name);
     }
     console.groupEnd();
-    console.info(`⟡ Import summary: ${ok}/${jar.length} ok | ${expired.length} expired | ${failed.length} failed`);
+    console.info(`⟡ Import summary (${mode}): ${ok}/${jar.length} ok | ${expired.length} expired | ${failed.length} failed`);
     return [ok, expired, failed];
 }
 
-/* HAR state */
+/* HAR globals -------------------------------------------------------- */
 let harRaw = "", harEntries = [];
 
 /* ── toggle password visibility ────────────────────────────────────── */
@@ -208,10 +199,7 @@ document.addEventListener("click", (e) => {
     if (!btn) return;
     const inp = $("pass");
     inp.type = inp.type === "password" ? "text" : "password";
-    btn.querySelector("i").setAttribute(
-        "data-lucide",
-        inp.type === "password" ? "eye" : "eye-off"
-    );
+    btn.querySelector("i").setAttribute("data-lucide", inp.type === "password" ? "eye" : "eye-off");
     icons();
 });
 
@@ -221,22 +209,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const blockChk = $("blockCookies");
 
-    /* restore saved prefs */
-    chrome.storage.sync.get(
-        ["proxyConfig", "webrtcPolicy", "blockNewCookies"],
-        (d) => {
-            if (d.proxyConfig) {
-                const c = d.proxyConfig;
-                $("host").value = c.host || "";
-                $("port").value = c.port || "";
-                $("user").value = c.username || "";
-                $("pass").value = c.password || "";
-            }
-            d.webrtcPolicy && ($("webrtc").value = d.webrtcPolicy);
-            blockChk.checked = !!d.blockNewCookies;
-        });
+    /* restore prefs */
+    chrome.storage.sync.get(["proxyConfig", "webrtcPolicy", "blockNewCookies"], (d) => {
+        if (d.proxyConfig) {
+            const c = d.proxyConfig;
+            $("host").value = c.host || "";
+            $("port").value = c.port || "";
+            $("user").value = c.username || "";
+            $("pass").value = c.password || "";
+        }
+        d.webrtcPolicy && ($("webrtc").value = d.webrtcPolicy);
+        blockChk.checked = !!d.blockNewCookies;
+    });
 
-    /* ── proxy actions */
+    /* proxy save / clear */
     $("saveBtn").onclick = () => {
         const cfg = {
             host: $("host").value.trim(),
@@ -265,9 +251,9 @@ document.addEventListener("DOMContentLoaded", () => {
         chrome.runtime.sendMessage({ action: "setBlockCookies", enabled: e.target.checked });
     };
 
-    /* export cookies */
+    /* export all cookies */
     $("exportCookiesBtn").onclick = () => {
-        if (!confirm("Warning: this will export ALL cookies stored in your browser. Continue?")) return;
+        if (!confirm("Warning: this will export ALL cookies in your browser. Continue?")) return;
         chrome.cookies.getAll({}, (list) => {
             const blob = new Blob([JSON.stringify(list)], { type: "application/json" });
             chrome.downloads.download({
@@ -282,22 +268,14 @@ document.addEventListener("DOMContentLoaded", () => {
         const txt = prompt("Paste session JSON:");
         if (!txt) return;
         let data;
-        try {
-            data = JSON.parse(txt);
-            console.debug("[Session paste] Parsed", data?.cookies?.length || 0, "cookies");
-        } catch (err) {
-            console.error("[Session paste] Invalid JSON", err);
-            return alert("Invalid JSON");
-        }
+        try { data = JSON.parse(txt); } catch { return alert("Invalid JSON"); }
         const jar = data.cookies || [];
         if (!jar.length) return alert("No cookies array.");
-        const [ok, exp, fail] = await importJar(
-            jar, undefined, location.href, $("ignoreExpiry").checked
-        );
+        const [ok, exp, fail] = await importJar(jar, undefined, location.href, $("ignoreExpiry").checked);
         alert(`Imported ${ok}/${jar.length}\nExpired skipped: ${exp.length}\nFailed: ${fail.length}`);
     };
 
-    /* JSON imports */
+    /* JSON file import */
     const jsonPick = $("importJsonFile");
     function pickJson(ss) {
         jsonPick.value = "";
@@ -306,25 +284,16 @@ document.addEventListener("DOMContentLoaded", () => {
             const f = e.target.files[0];
             if (!f) return;
             let jar;
-            try {
-                jar = JSON.parse(await f.text());
-                console.debug("[JSON import] Parsed", jar.length, "cookies");
-            } catch (err) {
-                console.error("[JSON import] Invalid JSON", err);
-                return alert("Invalid JSON file.");
-            }
-            if (!Array.isArray(jar) || !jar.length)
-                return alert("No cookies array.");
-            const [ok, exp, fail] = await importJar(
-                jar, ss, location.href, $("ignoreExpiry").checked
-            );
+            try { jar = JSON.parse(await f.text()); } catch { return alert("Invalid JSON file."); }
+            if (!Array.isArray(jar) || !jar.length) return alert("No cookies array.");
+            const [ok, exp, fail] = await importJar(jar, ss, location.href, $("ignoreExpiry").checked);
             alert(`Imported ${ok}/${jar.length}\nExpired skipped: ${exp.length}\nFailed: ${fail.length}`);
         };
     }
     $("standardImportBtn").onclick = () => pickJson(undefined);
     $("crossImportBtn").onclick = () => pickJson("no_restriction");
 
-    /* HAR import */
+    /* HAR import workflow */
     const harPick = $("harFile");
     $("importHarBtn").onclick = () => harPick.click();
 
@@ -342,10 +311,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     `<option value="${i}">${i + 1} — ${en.request.method} ${en.request.url.slice(0, 60)}</option>`
                 ).join("");
             $("harUI").classList.remove("hidden");
-            console.debug("[HAR import] Loaded", harEntries.length, "entries");
-        } catch (err) {
+        } catch {
             alert("Invalid HAR file.");
-            console.error("[HAR import] Parse error", err);
             harRaw = ""; harEntries = [];
             $("harUI").classList.add("hidden");
         }

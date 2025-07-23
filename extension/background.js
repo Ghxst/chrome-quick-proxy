@@ -2,11 +2,11 @@ let L = null;                          // auth proxy listener
 let H = null;                          // "block new cookies" listener
 
 const S = chrome.cookies.set,
-      G = (u) => new Promise((r, a) =>
-          S(u, x => chrome.runtime.lastError ? a(chrome.runtime.lastError) : r(x))),
-      W = chrome.proxy.settings,
-      P = chrome.webRequest.onAuthRequired,
-      Q = chrome.privacy.network.webRTCIPHandlingPolicy;
+    G = (u) => new Promise((r, a) =>
+        S(u, x => chrome.runtime.lastError ? a(chrome.runtime.lastError) : r(x))),
+    W = chrome.proxy.settings,
+    P = chrome.webRequest.onAuthRequired,
+    Q = chrome.privacy.network.webRTCIPHandlingPolicy;
 
 /* ── proxy helpers ──────────────────────────────────────────────────── */
 
@@ -38,7 +38,7 @@ async function applyProxy(c) {
 async function setRTC(v) {
     await new Promise((r, a) =>
         Q.set({ value: v, scope: "regular" },
-              () => chrome.runtime.lastError ? a(chrome.runtime.lastError) : r()));
+            () => chrome.runtime.lastError ? a(chrome.runtime.lastError) : r()));
 }
 
 /* ── block-new-cookies helpers ─────────────────────────────────────── */
@@ -75,14 +75,14 @@ chrome.storage.sync.get("blockNewCookies", d =>
 chrome.runtime.onMessage.addListener((m, _, send) => {
     (async () => {
         try {
-            if (m.action === "applyProxyConfig")      await applyProxy(m.cfg);
+            if (m.action === "applyProxyConfig") await applyProxy(m.cfg);
             else if (m.action === "clearProxyConfig") await clearProxy();
-            else if (m.action === "setWebRTCPolicy")  await setRTC(m.policy);
-            else if (m.action === "setBlockCookies")  updateCookieBlock(!!m.enabled);
+            else if (m.action === "setWebRTCPolicy") await setRTC(m.policy);
+            else if (m.action === "setBlockCookies") updateCookieBlock(!!m.enabled);
             else if (m.action === "exportCookies") {
                 const list = await new Promise(r => chrome.cookies.getAll({}, r));
                 const data = 'data:application/json;base64,' +
-                             btoa(unescape(encodeURIComponent(JSON.stringify(list))));
+                    btoa(unescape(encodeURIComponent(JSON.stringify(list))));
                 chrome.downloads.download({
                     url: data,
                     filename: `cookies_${Date.now()}.json`
@@ -94,36 +94,36 @@ chrome.runtime.onMessage.addListener((m, _, send) => {
                     try {
                         await G({
                             url: (c.secure ? 'https://' : 'http://') +
-                                 c.domain.replace(/^\./, '') + (c.path || '/'),
-                            name:  c.name,
+                                c.domain.replace(/^\./, '') + (c.path || '/'),
+                            name: c.name,
                             value: c.value,
                             domain: c.domain,
-                            path:  c.path || '/',
+                            path: c.path || '/',
                             secure: !!c.secure,
                             httpOnly: !!c.httpOnly,
                             sameSite: m.mode === 'cross' ? 'no_restriction' : c.sameSite,
                             expirationDate: c.expirationDate ??
-                                            (c.expires ? Number(c.expires) : undefined)
+                                (c.expires ? Number(c.expires) : undefined)
                         });
                         ok++;
-                    } catch {}
+                    } catch { }
                 }
             }
             else if (m.action === "importHarCookies") {
                 const h = JSON.parse(m.har),
-                      e = h?.log?.entries || [],
-                      en = e[m.entryIndex];
+                    e = h?.log?.entries || [],
+                    en = e[m.entryIndex];
                 if (en) {
                     const jar = en[m.source]?.cookies || [];
                     for (const c of jar) {
                         await G({
                             url: (c.secure ? 'https://' : 'http://') +
-                                 (c.domain || new URL(en.request.url).hostname)
-                                   .replace(/^\./, '') + (c.path || '/'),
-                            name:  c.name,
+                                (c.domain || new URL(en.request.url).hostname)
+                                    .replace(/^\./, '') + (c.path || '/'),
+                            name: c.name,
                             value: c.value,
                             domain: c.domain,
-                            path:  c.path || '/',
+                            path: c.path || '/',
                             secure: !!c.secure,
                             httpOnly: !!c.httpOnly,
                             expirationDate: c.expires ? Number(c.expires) : undefined
@@ -131,7 +131,7 @@ chrome.runtime.onMessage.addListener((m, _, send) => {
                     }
                 }
             }
-        } catch (_) {}
+        } catch (_) { }
         send();
     })();
     return true;   // keep channel open
