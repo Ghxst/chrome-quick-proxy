@@ -23,6 +23,7 @@
 
     <main class="p-4 space-y-6">
 
+        <!-- ─── Proxy Configuration ─────────────────────────────────────── -->
         <section class="bg-white rounded-xl border border-slate-200 shadow-sm">
             <div class="flex items-center gap-2 p-4 border-b border-slate-100">
                 <i data-lucide="settings" class="w-5 h-5 text-slate-600"></i>
@@ -32,11 +33,11 @@
             <!-- tabs -->
             <div class="flex border-b border-slate-100">
                 <button id="tabCustom"
-                    class="flex-1 px-3 py-2 text-xs font-medium border-b-2 border-blue-600 text-blue-600">
+                        class="flex-1 px-3 py-2 text-xs font-medium border-b-2 border-blue-600 text-blue-600">
                     Custom
                 </button>
                 <button id="tabPreset"
-                    class="flex-1 px-3 py-2 text-xs font-medium border-b-2 border-transparent text-slate-600">
+                        class="flex-1 px-3 py-2 text-xs font-medium border-b-2 border-transparent text-slate-600">
                     Preset
                 </button>
             </div>
@@ -47,24 +48,24 @@
                     <div>
                         <label for="host" class="block text-xs font-medium text-slate-600 mb-1">Host</label>
                         <input id="host" type="text"
-                            class="w-full h-9 rounded-md border border-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-500">
+                               class="w-full h-9 rounded-md border border-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div>
                         <label for="port" class="block text-xs font-medium text-slate-600 mb-1">Port</label>
                         <input id="port" type="number"
-                            class="w-full h-9 rounded-md border border-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-500">
+                               class="w-full h-9 rounded-md border border-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-500">
                     </div>
                 </div>
                 <div>
                     <label for="user" class="block text-xs font-medium text-slate-600 mb-1">Username</label>
                     <input id="user" type="text"
-                        class="w-full h-9 rounded-md border border-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-500">
+                           class="w-full h-9 rounded-md border border-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
                     <label for="pass" class="block text-xs font-medium text-slate-600 mb-1">Password</label>
                     <div class="relative">
                         <input id="pass" type="password"
-                            class="w-full h-9 rounded-md border border-slate-300 pr-10 px-3 text-sm focus:ring-2 focus:ring-blue-500">
+                               class="w-full h-9 rounded-md border border-slate-300 pr-10 px-3 text-sm focus:ring-2 focus:ring-blue-500">
                         <button type="button" id="togglePass" class="absolute inset-y-0 right-2 flex items-center">
                             <i data-lucide="eye" class="w-4 h-4 text-slate-500"></i>
                         </button>
@@ -72,11 +73,11 @@
                 </div>
                 <div class="flex gap-3">
                     <button id="saveBtn"
-                        class="flex-1 h-9 rounded-md bg-blue-600 text-white text-xs font-medium flex items-center justify-center gap-1 hover:bg-blue-700">
+                            class="flex-1 h-9 rounded-md bg-blue-600 text-white text-xs font-medium flex items-center justify-center gap-1 hover:bg-blue-700">
                         <i data-lucide="save" class="w-4 h-4"></i>Save
                     </button>
                     <button id="clearBtn"
-                        class="flex-1 h-9 rounded-md border border-slate-300 text-slate-700 text-xs font-medium flex items-center justify-center gap-1 hover:bg-slate-50">
+                            class="flex-1 h-9 rounded-md border border-slate-300 text-slate-700 text-xs font-medium flex items-center justify-center gap-1 hover:bg-slate-50">
                         <i data-lucide="trash" class="w-4 h-4"></i>Clear
                     </button>
                 </div>
@@ -87,19 +88,19 @@
                 <div>
                     <label class="block text-xs font-medium text-slate-600 mb-1">Vendor</label>
                     <select id="vendorSelect"
-                        class="w-full h-9 rounded-md border border-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-500">
+                            class="w-full h-9 rounded-md border border-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-500">
                         <option>Select vendor</option>
                     </select>
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-slate-600 mb-1">Proxy</label>
                     <select id="proxySelect"
-                        class="w-full h-9 rounded-md border border-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-500">
+                            class="w-full h-9 rounded-md border border-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-500">
                         <option>Select proxy</option>
                     </select>
                 </div>
                 <button id="applyPresetBtn"
-                    class="w-full h-9 rounded-md bg-blue-600 text-white text-xs font-medium flex items-center justify-center gap-1 hover:bg-blue-700">
+                        class="w-full h-9 rounded-md bg-blue-600 text-white text-xs font-medium flex items-center justify-center gap-1 hover:bg-blue-700">
                     <i data-lucide="check-circle" class="w-4 h-4"></i>Apply preset
                 </button>
             </div>
@@ -107,9 +108,10 @@
             <div class="px-4 pb-4 text-[10px] text-slate-500 flex items-center gap-1">
                 <span id="ipDot"  class="inline-block w-2 h-2 rounded-full bg-gray-400"></span>
                 <span id="ipInfo">IP — LOADING…</span>
-              </div>
+            </div>
         </section>
 
+        <!-- ─── WebRTC Policy ────────────────────────────────────────────── -->
         <section class="bg-white rounded-xl border border-slate-200 shadow-sm">
             <div class="flex items-center gap-2 p-4 border-b border-slate-100">
                 <i data-lucide="shield" class="w-5 h-5 text-slate-600"></i>
@@ -117,8 +119,9 @@
             </div>
 
             <div class="p-4">
-                <select id="webrtc" class="w-full h-9 rounded-md border border-slate-300 px-3 text-sm focus:ring-2
-                       focus:ring-blue-500 focus:outline-none">
+                <select id="webrtc"
+                        class="w-full h-9 rounded-md border border-slate-300 px-3 text-sm focus:ring-2
+                               focus:ring-blue-500 focus:outline-none">
                     <option value="default">Default</option>
                     <option value="default_public_interface_only">Public IP only</option>
                     <option value="default_public_and_private_interfaces">Public + Private</option>
@@ -127,6 +130,7 @@
             </div>
         </section>
 
+        <!-- ─── Cookie Management ────────────────────────────────────────── -->
         <section class="bg-white rounded-xl border border-slate-200 shadow-sm">
             <div class="flex items-center gap-2 p-4 border-b border-slate-100">
                 <i data-lucide="cookie" class="w-5 h-5 text-slate-600"></i>
@@ -135,7 +139,8 @@
 
             <div class="p-4 space-y-4">
                 <div class="flex items-center gap-2">
-                    <input id="ignoreExpiry" type="checkbox" class="h-4 w-4 rounded text-blue-600 border-slate-300">
+                    <input id="ignoreExpiry" type="checkbox"
+                           class="h-4 w-4 rounded text-blue-600 border-slate-300">
                     <label for="ignoreExpiry" class="text-xs text-slate-600 select-none">
                         Ignore cookie expiry
                     </label>
@@ -143,8 +148,9 @@
 
                 <div class="border-t border-slate-100"></div>
 
-                <button id="importHarBtn" class="w-full h-9 rounded-md border border-slate-300 text-slate-700 text-xs
-                             font-medium flex items-center justify-center gap-1 hover:bg-slate-50">
+                <button id="importHarBtn"
+                        class="w-full h-9 rounded-md border border-slate-300 text-slate-700 text-xs
+                               font-medium flex items-center justify-center gap-1 hover:bg-slate-50">
                     <i data-lucide="file-text" class="w-4 h-4"></i>
                     Import HAR File
                 </button>
@@ -152,16 +158,18 @@
                 <div id="harUI" class="hidden space-y-3 bg-slate-50 p-3 rounded-md border border-slate-200">
                     <div>
                         <label class="block text-xs font-medium text-slate-600 mb-1">HAR entry</label>
-                        <select id="harEntry" class="w-full h-8 rounded-md border border-slate-300 px-2 text-xs focus:ring-2
-                                 focus:ring-blue-500 focus:outline-none">
+                        <select id="harEntry"
+                                class="w-full h-8 rounded-md border border-slate-300 px-2 text-xs focus:ring-2
+                                       focus:ring-blue-500 focus:outline-none">
                             <option>Select entry</option>
                         </select>
                     </div>
 
                     <div>
                         <label class="block text-xs font-medium text-slate-600 mb-1">Cookie source</label>
-                        <select id="cookieSource" class="w-full h-8 rounded-md border border-slate-300 px-2 text-xs focus:ring-2
-                                 focus:ring-blue-500 focus:outline-none">
+                        <select id="cookieSource"
+                                class="w-full h-8 rounded-md border border-slate-300 px-2 text-xs focus:ring-2
+                                       focus:ring-blue-500 focus:outline-none">
                             <option value="request">Request cookies</option>
                             <option value="response">Response cookies</option>
                         </select>
@@ -169,11 +177,12 @@
 
                     <div class="flex flex-col items-stretch gap-2">
                         <button id="standardHarBtn"
-                            class="w-full h-8 rounded-md bg-blue-600 text-white text-xs font-medium flex items-center justify-center gap-1 hover:bg-blue-700 transition-colors">
+                                class="w-full h-8 rounded-md bg-blue-600 text-white text-xs font-medium flex items-center justify-center gap-1 hover:bg-blue-700 transition-colors">
                             <i data-lucide="upload" class="w-4 h-4"></i>
                             Standard import
                         </button>
-                        <button id="crossHarBtn" class="w-full h-8 rounded-md border border-orange-300 text-orange-700 text-xs font-medium
+                        <button id="crossHarBtn"
+                                class="w-full h-8 rounded-md border border-orange-300 text-orange-700 text-xs font-medium
                                        flex items-center justify-center gap-1 hover:bg-orange-50 transition-colors">
                             <i data-lucide="globe" class="w-4 h-4"></i>
                             Cross-site import
@@ -182,14 +191,16 @@
                 </div>
 
                 <div class="border-t border-slate-100 pt-4 space-y-3">
-                    <button id="loadSessionBtn" class="w-full h-9 rounded-md border border-slate-300 text-slate-700 text-xs
-                               font-medium flex items-center justify-center gap-1 hover:bg-slate-50">
+                    <button id="loadSessionBtn"
+                            class="w-full h-9 rounded-md border border-slate-300 text-slate-700 text-xs
+                                   font-medium flex items-center justify-center gap-1 hover:bg-slate-50">
                         <i data-lucide="upload" class="w-4 h-4"></i>
                         Load session data
                     </button>
 
-                    <button id="exportCookiesBtn" class="w-full h-9 rounded-md border border-slate-300 text-slate-700 text-xs
-                               font-medium flex items-center justify-center gap-1 hover:bg-slate-50">
+                    <button id="exportCookiesBtn"
+                            class="w-full h-9 rounded-md border border-slate-300 text-slate-700 text-xs
+                                   font-medium flex items-center justify-center gap-1 hover:bg-slate-50">
                         <i data-lucide="download" class="w-4 h-4"></i>
                         Export all cookies
                     </button>
@@ -197,13 +208,15 @@
                     <div>
                         <label class="block text-xs font-medium text-slate-600 mb-2">Import JSON</label>
                         <div class="flex flex-col items-stretch gap-2">
-                            <button id="standardImportBtn" class="w-full h-8 rounded-md border border-slate-300 text-slate-700 text-xs font-medium
-                                         flex items-center justify-center gap-1 hover:bg-slate-50">
+                            <button id="standardImportBtn"
+                                    class="w-full h-8 rounded-md border border-slate-300 text-slate-700 text-xs font-medium
+                                           flex items-center justify-center gap-1 hover:bg-slate-50">
                                 <i data-lucide="upload" class="w-4 h-4"></i>
                                 Standard import
                             </button>
-                            <button id="crossImportBtn" class="w-full h-8 rounded-md border border-orange-300 text-orange-700 text-xs font-medium
-                                         flex items-center justify-center gap-1 hover:bg-orange-50">
+                            <button id="crossImportBtn"
+                                    class="w-full h-8 rounded-md border border-orange-300 text-orange-700 text-xs font-medium
+                                           flex items-center justify-center gap-1 hover:bg-orange-50">
                                 <i data-lucide="globe" class="w-4 h-4"></i>
                                 Cross-site import
                             </button>
@@ -212,8 +225,27 @@
                 </div>
             </div>
         </section>
+
+        <!-- ─── NEW ▸ Network ────────────────────────────────────────────── -->
+        <section class="bg-white rounded-xl border border-slate-200 shadow-sm">
+            <div class="flex items-center gap-2 p-4 border-b border-slate-100">
+                <i data-lucide="ban" class="w-5 h-5 text-slate-600"></i>
+                <h2 class="text-sm font-semibold text-slate-900">Network</h2>
+            </div>
+
+            <div class="p-4">
+                <div class="flex items-center gap-2">
+                    <input id="blockCookies" type="checkbox"
+                           class="h-4 w-4 rounded text-blue-600 border-slate-300">
+                    <label for="blockCookies" class="text-xs text-slate-600 select-none">
+                        Block new cookies
+                    </label>
+                </div>
+            </div>
+        </section>
     </main>
 
+    <!-- hidden file pickers -->
     <input id="harFile" type="file" accept=".har,application/json" class="hidden">
     <input id="importJsonFile" type="file" accept="application/json" class="hidden">
 
