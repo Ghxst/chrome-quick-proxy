@@ -1,91 +1,188 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <title>Proxy / WebRTC / Cookies</title>
-    <style>
-        body {
-            font-family: sans-serif;
-            margin: 0;
-            padding: 16px;
-            min-width: 260px
-        }
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Proxy Manager</title>
 
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-size: 14px
-        }
-
-        input,
-        select {
-            width: 100%;
-            padding: 6px;
-            margin-top: 2px;
-            margin-bottom: 12px;
-            box-sizing: border-box
-        }
-
-        button {
-            width: 48%;
-            padding: 8px;
-            font-size: 14px;
-            margin-right: 4%
-        }
-
-        #harBtn,
-        #sessionBtn,
-        #exportBtn,
-        #importJsonBtn,
-        #importJsonNoneBtn {
-            width: 100%;
-            margin-bottom: 12px
-        }
-
-        #harControls button {
-            width: 100%
-        }
-    </style>
+    <script src="tailwind.min.css"></script>
+    <script src="lucide.min.js"></script>
 </head>
 
-<body>
-    <label>Host <input id="host" type="text"></label>
-    <label>Port <input id="port" type="number"></label>
-    <label>User <input id="user" type="text"></label>
-    <label>Pass <input id="pass" type="password"></label>
+<body class="min-w-[320px] min-h-[500px] bg-gradient-to-br from-slate-50 to-slate-200 font-sans">
+    <header class="flex items-center gap-3 p-4 bg-white border-b border-slate-200">
+        <div class="w-9 h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center">
+            <i data-lucide="globe" class="w-5 h-5"></i>
+        </div>
+        <div>
+            <h1 class="text-sm font-semibold text-slate-900">Proxy Manager</h1>
+            <p class="text-xs text-slate-500">WebRTC & Cookie Control</p>
+        </div>
+    </header>
 
-    <label>WebRTC policy
-        <select id="webrtc">
-            <option value="default">Default</option>
-            <option value="default_public_interface_only">Public IP only</option>
-            <option value="default_public_and_private_interfaces">Public+private</option>
-            <option value="disable_non_proxied_udp">Disable non‑proxied UDP</option>
-        </select>
-    </label>
+    <main class="p-4 space-y-6">
 
-    <button id="harBtn">Import HAR cookies</button>
-    <input id="harFile" type="file" accept=".har,application/json" style="display:none">
-    <div id="harControls" style="display:none">
-        <label>HAR entry <select id="entrySelect"></select></label>
-        <label>Cookie source
-            <select id="sideSelect">
-                <option value="request">request.cookies[]</option>
-                <option value="response">response.cookies[]</option>
-            </select>
-        </label>
-        <button id="importCookies">Add cookies to Chrome</button>
-    </div>
+        <section class="bg-white rounded-xl border border-slate-200 shadow-sm">
+            <div class="flex items-center gap-2 p-4 border-b border-slate-100">
+                <i data-lucide="settings" class="w-5 h-5 text-slate-600"></i>
+                <h2 class="text-sm font-semibold text-slate-900">Proxy Configuration</h2>
+            </div>
 
-    <button id="sessionBtn">Load session data (JSON)</button>
-    <button id="exportBtn">Export all cookies (JSON)</button>
-    <button id="importJsonBtn">Import cookies (JSON)</button>
-    <button id="importJsonNoneBtn">Import cookies (SameSite None)</button>
-    <input id="importJsonFile" type="file" accept="application/json" style="display:none">
+            <div class="p-4 space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="host" class="block text-xs font-medium text-slate-600 mb-1">Host</label>
+                        <input id="host" type="text" placeholder="proxy.example.com" class="w-full h-9 rounded-md border border-slate-300 px-3 text-sm
+                          focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label for="port" class="block text-xs font-medium text-slate-600 mb-1">Port</label>
+                        <input id="port" type="number" placeholder="8080" class="w-full h-9 rounded-md border border-slate-300 px-3 text-sm
+                          focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                </div>
 
-    <button id="save">Save</button><button id="clear">Clear</button>
+                <div>
+                    <label for="user" class="block text-xs font-medium text-slate-600 mb-1">Username</label>
+                    <input id="user" type="text" placeholder="username" class="w-full h-9 rounded-md border border-slate-300 px-3 text-sm
+                        focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
 
-    <script src="popup.js"></script>
+                <div>
+                    <label for="pass" class="block text-xs font-medium text-slate-600 mb-1">Password</label>
+                    <div class="relative">
+                        <input id="pass" type="password" placeholder="password" class="w-full h-9 rounded-md border border-slate-300 pr-10 px-3 text-sm
+                          focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                        <button type="button" id="togglePass"
+                            class="absolute inset-y-0 right-2 flex items-center text-slate-500">
+                            <i data-lucide="eye" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex gap-3">
+                    <button id="saveBtn" class="flex-1 h-9 rounded-md bg-blue-600 text-white text-xs font-medium flex
+                         items-center justify-center gap-1 hover:bg-blue-700 transition-colors">
+                        <i data-lucide="save" class="w-4 h-4"></i>Save
+                    </button>
+                    <button id="clearBtn" class="flex-1 h-9 rounded-md border border-slate-300 text-slate-700 text-xs
+                         font-medium flex items-center justify-center gap-1 hover:bg-slate-50
+                         transition-colors">
+                        <i data-lucide="trash" class="w-4 h-4"></i>Clear
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-white rounded-xl border border-slate-200 shadow-sm">
+            <div class="flex items-center gap-2 p-4 border-b border-slate-100">
+                <i data-lucide="shield" class="w-5 h-5 text-slate-600"></i>
+                <h2 class="text-sm font-semibold text-slate-900">WebRTC Policy</h2>
+            </div>
+
+            <div class="p-4">
+                <select id="webrtc" class="w-full h-9 rounded-md border border-slate-300 px-3 text-sm focus:ring-2
+                       focus:ring-blue-500 focus:outline-none">
+                    <option value="default">Default</option>
+                    <option value="default_public_interface_only">Public IP only</option>
+                    <option value="default_public_and_private_interfaces">Public + Private</option>
+                    <option value="disable_non_proxied_udp">Disable non-proxied UDP</option>
+                </select>
+            </div>
+        </section>
+
+        <section class="bg-white rounded-xl border border-slate-200 shadow-sm">
+            <div class="flex items-center gap-2 p-4 border-b border-slate-100">
+                <i data-lucide="cookie" class="w-5 h-5 text-slate-600"></i>
+                <h2 class="text-sm font-semibold text-slate-900">Cookie Management</h2>
+            </div>
+
+            <div class="p-4 space-y-4">
+                <div class="flex items-center gap-2">
+                    <input id="ignoreExpiry" type="checkbox" class="h-4 w-4 rounded text-blue-600 border-slate-300">
+                    <label for="ignoreExpiry" class="text-xs text-slate-600 select-none">
+                        Ignore cookie expiry
+                    </label>
+                </div>
+
+                <div class="border-t border-slate-100"></div>
+
+                <button id="importHarBtn" class="w-full h-9 rounded-md border border-slate-300 text-slate-700 text-xs
+                             font-medium flex items-center justify-center gap-1 hover:bg-slate-50">
+                    <i data-lucide="file-text" class="w-4 h-4"></i>
+                    Import HAR File
+                </button>
+
+                <div id="harUI" class="hidden space-y-3 bg-slate-50 p-3 rounded-md border border-slate-200">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">HAR entry</label>
+                        <select id="harEntry" class="w-full h-8 rounded-md border border-slate-300 px-2 text-xs focus:ring-2
+                                 focus:ring-blue-500 focus:outline-none">
+                            <option>Select entry</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Cookie source</label>
+                        <select id="cookieSource" class="w-full h-8 rounded-md border border-slate-300 px-2 text-xs focus:ring-2
+                                 focus:ring-blue-500 focus:outline-none">
+                            <option value="request">Request cookies</option>
+                            <option value="response">Response cookies</option>
+                        </select>
+                    </div>
+
+                    <div class="flex flex-col items-stretch gap-2">
+                        <button id="standardHarBtn"
+                            class="w-full h-8 rounded-md bg-blue-600 text-white text-xs font-medium flex items-center justify-center gap-1 hover:bg-blue-700 transition-colors">
+                            <i data-lucide="upload" class="w-4 h-4"></i>
+                            Standard import
+                        </button>
+                        <button id="crossHarBtn" class="w-full h-8 rounded-md border border-orange-300 text-orange-700 text-xs font-medium
+                                       flex items-center justify-center gap-1 hover:bg-orange-50 transition-colors">
+                            <i data-lucide="globe" class="w-4 h-4"></i>
+                            Cross-site import
+                        </button>
+                    </div>
+                </div>
+
+                <div class="border-t border-slate-100 pt-4 space-y-3">
+                    <button id="loadSessionBtn" class="w-full h-9 rounded-md border border-slate-300 text-slate-700 text-xs
+                               font-medium flex items-center justify-center gap-1 hover:bg-slate-50">
+                        <i data-lucide="upload" class="w-4 h-4"></i>
+                        Load session data
+                    </button>
+
+                    <button id="exportCookiesBtn" class="w-full h-9 rounded-md border border-slate-300 text-slate-700 text-xs
+                               font-medium flex items-center justify-center gap-1 hover:bg-slate-50">
+                        <i data-lucide="download" class="w-4 h-4"></i>
+                        Export all cookies
+                    </button>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-2">Import JSON</label>
+                        <div class="flex flex-col items-stretch gap-2">
+                            <button id="standardImportBtn" class="w-full h-8 rounded-md border border-slate-300 text-slate-700 text-xs font-medium
+                                         flex items-center justify-center gap-1 hover:bg-slate-50">
+                                <i data-lucide="upload" class="w-4 h-4"></i>
+                                Standard import
+                            </button>
+                            <button id="crossImportBtn" class="w-full h-8 rounded-md border border-orange-300 text-orange-700 text-xs font-medium
+                                         flex items-center justify-center gap-1 hover:bg-orange-50">
+                                <i data-lucide="globe" class="w-4 h-4"></i>
+                                Cross-site import
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <input id="harFile" type="file" accept=".har,application/json" class="hidden">
+    <input id="importJsonFile" type="file" accept="application/json" class="hidden">
+
+    <script type="module" src="popup.js"></script>
 </body>
 
 </html>

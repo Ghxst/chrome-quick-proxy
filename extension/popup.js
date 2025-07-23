@@ -1,1 +1,278 @@
-document.addEventListener("DOMContentLoaded", () => { const $ = i => document.getElementById(i), h = $("host"), p = $("port"), u = $("user"), w = $("pass"), c = $("webrtc"), y = $("save"), g = $("clear"), b = $("harBtn"), x = $("harFile"), m = $("harControls"), v = $("entrySelect"), S = $("sideSelect"), I = $("importCookies"), N = $("sessionBtn"), E = $("exportBtn"), J = $("importJsonBtn"), K = $("importJsonNoneBtn"), F = $("importJsonFile"); chrome.storage.sync.get(["host", "port", "username", "password", "webrtc"], d => { d.host && (h.value = d.host); d.port && (p.value = d.port); d.username && (u.value = d.username); d.password && (w.value = d.password); d.webrtc && (c.value = d.webrtc) }); const L = (e, o) => chrome.runtime.sendMessage(e, o), R = e => new Promise((o, r) => chrome.cookies.set(e, () => chrome.runtime.lastError ? r(chrome.runtime.lastError) : o())), T = (e, o) => { const t = (e.domain || new URL(o).hostname).replace(/^\./, ""); return (e.secure ? "https://" : "http://") + t + (e.path || "/") }; y.addEventListener("click", () => { const e = { host: h.value.trim(), port: Number(p.value.trim()), username: u.value.trim(), password: w.value }; if (!e.host || !e.port) return alert("Host and port required."); L({ action: "setAll", data: { proxy: e, webrtc: c.value } }, o => { chrome.runtime.lastError || o?.ok === !1 ? alert(chrome.runtime.lastError?.message || o?.error || "Error") : window.close() }) }); g.addEventListener("click", () => L({ action: "clearAll" }, o => { chrome.runtime.lastError || o?.ok === !1 ? alert(chrome.runtime.lastError?.message || o?.error || "Error") : window.close() })); let d = []; b.addEventListener("click", () => x.click()); x.addEventListener("change", () => { if (!x.files.length) return; const e = new FileReader; e.onload = i => { try { const o = JSON.parse(i.target.result); d = o?.log?.entries || []; if (!d.length) throw 0; v.innerHTML = d.map((s, l) => `<option value="${l}">${l + 1} — ${s.request.method} ${s.request.url}</option>`).join(""); m.style.display = "block" } catch { alert("HAR error"); d = []; m.style.display = "none" } }; e.readAsText(x.files[0]) }); I.addEventListener("click", async () => { const e = d[Number(v.value)]; if (!e) return alert("No entry."); const o = e[S.value]?.cookies || []; if (!o.length) return alert("No cookies."); let r = 0; for (const s of o) try { await R({ url: T(s, e.request.url), name: s.name, value: s.value, domain: s.domain, path: s.path || "/", secure: !!s.secure, httpOnly: !!s.httpOnly, expirationDate: s.expires ? Number(s.expires) : undefined }); r++ } catch { } alert(`Imported ${r}/${o.length} cookies`) }); N.addEventListener("click", async () => { const e = prompt("Paste session JSON"); if (!e) return; let o; try { o = JSON.parse(e) } catch { return alert("Invalid JSON") }; const r = o.cookies || []; if (!r.length) return alert("No cookies field."); let s = 0; for (const l of r) if (l.name && l.value && l.domain) try { await R({ url: T(l, "https://" + l.domain.replace(/^\./, "")), name: l.name, value: l.value, domain: l.domain, path: l.path || "/", secure: !!l.secure, httpOnly: !!l.httpOnly, expirationDate: l.expires ? Number(l.expires) : undefined }); s++ } catch { } alert(`Loaded ${s}/${r.length} cookies`) }); E.addEventListener("click", () => { if (!confirm("Warning: this will export ALL cookies stored in Chrome, not just for the current site. Continue?")) return; chrome.cookies.getAll({}, e => { const o = new Blob([JSON.stringify(e)], { type: "application/json" }), r = URL.createObjectURL(o), s = document.createElement("a"); s.href = r; s.download = "cookies_" + Date.now() + ".json"; s.click(); URL.revokeObjectURL(r) }) }); let H = !1; J.addEventListener("click", () => { H = !1; F.click() }); K.addEventListener("click", () => { H = !0; F.click() }); F.addEventListener("change", () => { if (!F.files.length) return; const e = new FileReader; e.onload = async i => { let o; try { o = JSON.parse(i.target.result) } catch { return alert("Invalid JSON") }; if (!Array.isArray(o) || !o.length) return alert("No cookies array."); let r = 0; for (const s of o) if (s.name && s.value && s.domain) try { await R({ url: T(s, "https://" + s.domain.replace(/^\./, "")), name: s.name, value: s.value, domain: s.domain, path: s.path || "/", secure: !!s.secure, httpOnly: !!s.httpOnly, sameSite: H ? "no_restriction" : s.sameSite, expirationDate: s.expirationDate ?? (s.expires ? Number(s.expires) : undefined) }); r++ } catch { } alert(`Imported ${r}/${o.length} cookies`) }; e.readAsText(F.files[0]) }) });
+const $ = (id) => document.getElementById(id);
+const icons = () => lucide.createIcons();
+
+/* ---------- helpers ---------------------------------------------------- */
+
+const setCookie = (o) =>
+    new Promise((res, rej) =>
+        chrome.cookies.set(o, () =>
+            chrome.runtime.lastError ? rej(chrome.runtime.lastError) : res()
+        )
+    );
+
+const toEpoch = (val) => {
+    if (val == null) return undefined;            // session cookie
+    if (typeof val === "number" && isFinite(val))
+        return val > 0 ? val : undefined;           // 0 / –1 → session
+    const t = Date.parse(val);
+    return isFinite(t) ? t / 1000 : undefined;    // seconds
+};
+const nowSec = () => (Date.now() / 1000) | 0;
+
+/* ---------- cookie importer ------------------------------------------- */
+/**
+ * @param {Array} jar   cookie objects
+ * @param {string|undefined} ss  SameSite override ("no_restriction")
+ * @param {string} baseUrl       url for scheme/host fallback
+ * @param {boolean} ignoreExp    if true, omit expirationDate
+ */
+async function importJar(jar, ss, baseUrl, ignoreExp = false) {
+    let ok = 0,
+        failed = [],
+        expired = [];
+
+    for (const c of jar) {
+        const forceSecure = ss === "no_restriction";
+        const isSecure = forceSecure ? true : !!c.secure;
+        const scheme =
+            isSecure || /^\s*https:/i.test(baseUrl) ? "https://" : "http://";
+        const host = (
+            c.domain || new URL(baseUrl || "https://dummy").hostname
+        ).replace(/^\./, "");
+        const url = scheme + host + (c.path || "/");
+
+        const exp = toEpoch(c.expirationDate ?? c.expires);
+        if (!ignoreExp && exp !== undefined && exp <= nowSec()) {
+            console.warn("⏰ expired — skip", c.name, { exp, src: c });
+            expired.push(c.name);
+            continue;
+        }
+
+        const obj = {
+            url,
+            name: c.name,
+            value: c.value,
+            path: c.path || "/",
+            secure: isSecure,
+            httpOnly: !!c.httpOnly,
+        };
+        if (c.domain) obj.domain = c.domain;
+        if (!ignoreExp && exp !== undefined) obj.expirationDate = exp; // <<< key change
+        if (ss || c.sameSite) obj.sameSite = ss ?? c.sameSite;
+
+        try {
+            console.log("🔄 setCookie »", obj);
+            await setCookie(obj);
+            ok++;
+            continue;
+        } catch (err) {
+            console.warn("⚠️  failed", c.name, err?.message || err);
+        }
+
+        /* retry host-only (domain removed) */
+        if (c.domain) {
+            const { domain, ...hostOnly } = obj;
+            try {
+                console.log("🔄 retry host-only »", hostOnly);
+                await setCookie(hostOnly);
+                ok++;
+                continue;
+            } catch (err) {
+                console.warn("⚠️  failed host-only", c.name, err?.message || err);
+            }
+        }
+        failed.push(c.name);
+    }
+
+    console.info(
+        `✅ imported ${ok}/${jar.length} | ⏰ expired ${expired.length} | ❌ failed ${failed.length}`
+    );
+    return [ok, expired, failed];
+}
+
+/* ---------- HAR state -------------------------------------------------- */
+
+let harRaw = "",
+    harEntries = [];
+
+/* ---------- UI --------------------------------------------------------- */
+
+document.addEventListener("click", (e) => {
+    const btn = e.target.closest("#togglePass");
+    if (!btn) return;
+    const inp = $("pass");
+    inp.type = inp.type === "password" ? "text" : "password";
+    btn.querySelector("i").setAttribute(
+        "data-lucide",
+        inp.type === "password" ? "eye" : "eye-off"
+    );
+    icons();
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+    icons();
+
+    /* restore settings */
+    chrome.storage.sync.get(["proxyConfig", "webrtcPolicy"], (d) => {
+        if (d.proxyConfig) {
+            const c = d.proxyConfig;
+            $("host").value = c.host || "";
+            $("port").value = c.port || "";
+            $("user").value = c.username || "";
+            $("pass").value = c.password || "";
+        }
+        d.webrtcPolicy && ($("webrtc").value = d.webrtcPolicy);
+    });
+
+    /* proxy */
+    $("saveBtn").onclick = () => {
+        const cfg = {
+            host: $("host").value.trim(),
+            port: +$("port").value || 0,
+            username: $("user").value.trim(),
+            password: $("pass").value.trim(),
+        };
+        chrome.storage.sync.set({ proxyConfig: cfg });
+        chrome.runtime.sendMessage({ action: "applyProxyConfig", cfg });
+    };
+    $("clearBtn").onclick = () => {
+        chrome.storage.sync.remove("proxyConfig");
+        chrome.runtime.sendMessage({ action: "clearProxyConfig" });
+        ["host", "port", "user", "pass"].forEach((id) => ($(id).value = ""));
+    };
+
+    /* WebRTC */
+    $("webrtc").onchange = (e) => {
+        chrome.storage.sync.set({ webrtcPolicy: e.target.value });
+        chrome.runtime.sendMessage({
+            action: "setWebRTCPolicy",
+            policy: e.target.value,
+        });
+    };
+
+    /* export */
+    $("exportCookiesBtn").onclick = () => {
+        if (
+            !confirm(
+                "Warning: this will export ALL cookies stored in your browser. Continue?"
+            )
+        )
+            return;
+        chrome.cookies.getAll({}, (list) => {
+            const blob = new Blob([JSON.stringify(list)], {
+                type: "application/json",
+            });
+            chrome.downloads.download({
+                url: URL.createObjectURL(blob),
+                filename: `cookies_${Date.now()}.json`,
+            });
+        });
+    };
+
+    /* session paste */
+    $("loadSessionBtn").onclick = async () => {
+        const txt = prompt("Paste session JSON:");
+        if (!txt) return;
+        let data;
+        try {
+            data = JSON.parse(txt);
+        } catch {
+            return alert("Invalid JSON");
+        }
+        const jar = data.cookies || [];
+        if (!jar.length) return alert("No cookies array.");
+        const [ok, exp, fail] = await importJar(
+            jar,
+            undefined,
+            location.href,
+            $("ignoreExpiry").checked
+        );
+        alert(
+            `Imported ${ok}/${jar.length}\nExpired skipped: ${exp.length}\nFailed: ${fail.length}`
+        );
+    };
+
+    /* JSON imports */
+    const jsonPick = $("importJsonFile");
+    function pickJson(ss) {
+        jsonPick.value = "";
+        jsonPick.click();
+        jsonPick.onchange = async (e) => {
+            const f = e.target.files[0];
+            if (!f) return;
+            let jar;
+            try {
+                jar = JSON.parse(await f.text());
+            } catch {
+                return alert("Invalid JSON file.");
+            }
+            if (!Array.isArray(jar) || !jar.length)
+                return alert("No cookies array.");
+            const [ok, exp, fail] = await importJar(
+                jar,
+                ss,
+                location.href,
+                $("ignoreExpiry").checked
+            );
+            alert(
+                `Imported ${ok}/${jar.length}\nExpired skipped: ${exp.length}\nFailed: ${fail.length}`
+            );
+        };
+    }
+    $("standardImportBtn").onclick = () => pickJson(undefined);
+    $("crossImportBtn").onclick = () => pickJson("no_restriction");
+
+    /* HAR import */
+    const harPick = $("harFile");
+    $("importHarBtn").onclick = () => harPick.click();
+
+    harPick.onchange = async (e) => {
+        const f = e.target.files[0];
+        if (!f) return;
+        try {
+            harRaw = await f.text();
+            const har = JSON.parse(harRaw);
+            harEntries = har?.log?.entries || [];
+            if (!harEntries.length) throw 0;
+            $("harEntry").innerHTML =
+                '<option selected disabled>Select entry</option>' +
+                harEntries
+                    .map(
+                        (en, i) =>
+                            `<option value="${i}">${i + 1} — ${en.request.method} ${en.request.url.slice(
+                                0,
+                                60
+                            )}</option>`
+                    )
+                    .join("");
+            $("harUI").classList.remove("hidden");
+        } catch {
+            alert("Invalid HAR file.");
+            harRaw = "";
+            harEntries = [];
+            $("harUI").classList.add("hidden");
+        }
+    };
+
+    function runHarImport(mode) {
+        if (!harRaw) return alert("Choose a HAR file first.");
+        const idx = $("harEntry").selectedIndex - 1;
+        if (idx < 0) return alert("Pick an entry first.");
+        const src = $("cookieSource").value;
+        const en = harEntries[idx];
+        const jar = en?.[src]?.cookies || [];
+        if (!jar.length) return alert("No cookies.");
+        importJar(
+            jar,
+            mode === "cross" ? "no_restriction" : undefined,
+            en.request.url,
+            $("ignoreExpiry").checked
+        ).then(([ok, exp, fail]) =>
+            alert(
+                `Imported ${ok}/${jar.length}\nExpired skipped: ${exp.length}\nFailed: ${fail.length}`
+            )
+        );
+    }
+    $("standardHarBtn").onclick = () => runHarImport("standard");
+    $("crossHarBtn").onclick = () => runHarImport("cross");
+});
