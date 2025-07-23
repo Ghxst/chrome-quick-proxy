@@ -1,6 +1,69 @@
 const $ = (id) => document.getElementById(id);
 const icons = () => lucide.createIcons();
 
+const show = (el, on = true) => el.classList[on ? 'remove' : 'add']('hidden')
+
+document.addEventListener('DOMContentLoaded', async () => {
+    icons()
+
+    const customBtn = $('tabCustom')
+    const presetBtn = $('tabPreset')
+    const customForm = $('customForm')
+    const presetForm = $('presetForm')
+    const vendorSel = $('vendorSelect')
+    const proxySel = $('proxySelect')
+    const applyBtn = $('applyPresetBtn')
+
+    const activate = tab => {
+        const active = tab === 'custom'
+        customBtn.classList.toggle('text-blue-600', active)
+        customBtn.classList.toggle('text-slate-600', !active)
+        presetBtn.classList.toggle('text-blue-600', !active)
+        presetBtn.classList.toggle('text-slate-600', active)
+        customBtn.classList.toggle('border-blue-600', active)
+        presetBtn.classList.toggle('border-blue-600', !active)
+        show(customForm, active)
+        show(presetForm, !active)
+    }
+
+    customBtn.onclick = () => activate('custom')
+    presetBtn.onclick = () => activate('preset')
+
+    // load presets.json
+    try {
+        const presets = await fetch(chrome.runtime.getURL('presets.json')).then(r => r.json())
+    
+        Object.keys(presets).forEach(v => {
+            const o = document.createElement('option')
+            o.value = o.textContent = v
+            vendorSel.appendChild(o)
+        })
+
+        vendorSel.onchange = () => {
+            proxySel.innerHTML = '<option>Select proxy</option>'
+            const list = presets[vendorSel.value] || []
+            list.forEach((p, i) => {
+                const o = document.createElement('option')
+                o.value = i
+                o.textContent = `${p.host}:${p.port}`
+                proxySel.appendChild(o)
+            })
+        }
+
+        applyBtn.onclick = () => {
+            const v = vendorSel.value
+            const idx = proxySel.value
+            if (!presets[v] || !presets[v][idx]) return
+            const p = presets[v][idx]
+            $('host').value = p.host
+            $('port').value = p.port
+            $('user').value = p.user || ''
+            $('pass').value = p.pass || ''
+            activate('custom')
+        }
+    } catch { }
+})
+
 /* ---------- helpers ---------------------------------------------------- */
 
 const setCookie = (o) =>
