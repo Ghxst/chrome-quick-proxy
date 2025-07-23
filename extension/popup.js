@@ -1,10 +1,26 @@
 const $ = (id) => document.getElementById(id);
 const icons = () => lucide.createIcons();
-
 const show = (el, on = true) => el.classList[on ? 'remove' : 'add']('hidden')
+
+const setDot = colour =>
+    $('ipDot').className = `inline-block w-2 h-2 rounded-full ${colour}`
+
+async function updateIP() {
+    setDot('bg-gray-400')               // pending / loading
+    try {
+        const txt = await fetch('https://cloudflare-dns.com/cdn-cgi/trace').then(r => r.text())
+        const kv = Object.fromEntries(txt.trim().split('\n').map(l => l.split('=')))
+        $('ipInfo').textContent = `IP: ${kv.ip || '?'} | LOC: ${kv.loc || '?'}`
+        setDot('bg-green-500')            // fetched OK
+    } catch (_) {
+        $('ipInfo').textContent = 'IP: ?'
+        setDot('bg-red-500')              // fetch failed
+    }
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
     icons()
+    updateIP()
 
     const customBtn = $('tabCustom')
     const presetBtn = $('tabPreset')
@@ -32,7 +48,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // load presets.json
     try {
         const presets = await fetch(chrome.runtime.getURL('presets.json')).then(r => r.json())
-    
+
         Object.keys(presets).forEach(v => {
             const o = document.createElement('option')
             o.value = o.textContent = v
@@ -62,6 +78,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             activate('custom')
         }
     } catch { }
+
+    const queueUpdate = delay => {
+        setDot('bg-gray-400');
+        setTimeout(updateIP, delay)
+    }
+
+    $('saveBtn').addEventListener('click', () => queueUpdate(1000))
+    $('applyPresetBtn').addEventListener('click', () => queueUpdate(1000))
+    $('clearBtn').addEventListener('click', () => queueUpdate(500))
 })
 
 /* ---------- helpers ---------------------------------------------------- */
