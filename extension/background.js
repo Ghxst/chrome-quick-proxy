@@ -1,138 +1,188 @@
-let L = null;                          // auth proxy listener
-let H = null;                          // "block new cookies" listener
+/* ==================================================================== */
+/*  Quick Proxy Auth – background service-worker                        */
+/* ==================================================================== */
 
-const S = chrome.cookies.set,
-    G = (u) => new Promise((r, a) =>
-        S(u, x => chrome.runtime.lastError ? a(chrome.runtime.lastError) : r(x))),
-    W = chrome.proxy.settings,
-    P = chrome.webRequest.onAuthRequired,
-    Q = chrome.privacy.network.webRTCIPHandlingPolicy;
+/* ── handy aliases ──────────────────────────────────────────────────── */
+const S = chrome.cookies.set;
+const W = chrome.proxy.settings;
+const P = chrome.webRequest.onAuthRequired;
+const Q = chrome.privacy.network.webRTCIPHandlingPolicy;
 
-/* ── proxy helpers ──────────────────────────────────────────────────── */
+const G = (o) => new Promise((res, rej) =>
+    S(o, () => chrome.runtime.lastError ? rej(chrome.runtime.lastError) : res())
+);
 
+/* ── listener handles / state ──────────────────────────────────────── */
+let proxyAuthL = null;
+let stripHdrL = null;
+let killCookieL = null;
+let baselineSet = new Set();
+
+/* ── proxy helpers ─────────────────────────────────────────────────── */
 async function clearProxy() {
-    if (L) { P.removeListener(L); L = null; }
+    if (proxyAuthL) { P.removeListener(proxyAuthL); proxyAuthL = null; }
     await new Promise(r => W.clear({ scope: "regular" }, r));
 }
-
-async function applyProxy(c) {
+async function applyProxy(cfg) {
     await clearProxy();
     await new Promise(r => W.set({
         value: {
             mode: "fixed_servers",
             rules: {
-                singleProxy: { scheme: "http", host: c.host, port: +c.port },
+                singleProxy: { scheme: "http", host: cfg.host, port: +cfg.port },
                 bypassList: ["localhost", "127.0.0.1", "::1"]
             }
         },
         scope: "regular"
     }, r));
-    if (c.username && c.password) {
-        L = d => d.isProxy ? {
-            authCredentials: { username: c.username, password: c.password }
-        } : { cancel: !0 };
-        P.addListener(L, { urls: ["<all_urls>"] }, ["blocking"]);
+    if (cfg.username && cfg.password) {
+        proxyAuthL = d => d.isProxy
+            ? { authCredentials: { username: cfg.username, password: cfg.password } }
+            : { cancel: true };
+        P.addListener(proxyAuthL, { urls: ["<all_urls>"] }, ["blocking"]);
     }
 }
-
-async function setRTC(v) {
+async function setRTC(policy) {
     await new Promise((r, a) =>
-        Q.set({ value: v, scope: "regular" },
+        Q.set({ value: policy, scope: "regular" },
             () => chrome.runtime.lastError ? a(chrome.runtime.lastError) : r()));
 }
 
-/* ── block-new-cookies helpers ─────────────────────────────────────── */
+/* ── “block-new-cookies” implementation ────────────────────────────── */
+const keyOf = c => `${c.name}|${c.domain}|${c.path}`;
 
-function updateCookieBlock(enabled) {
-    if (enabled && !H) {
-        H = (d) => {
-            if (!d.responseHeaders) return;
-            return {
-                responseHeaders: d.responseHeaders.filter(
-                    h => h.name.toLowerCase() !== "set-cookie"
-                )
-            };
-        };
-        chrome.webRequest.onHeadersReceived.addListener(
-            H,
-            { urls: ["<all_urls>"] },
-            ["blocking", "responseHeaders", "extraHeaders"]
-        );
-        return;
-    }
-    if (!enabled && H) {
-        chrome.webRequest.onHeadersReceived.removeListener(H);
-        H = null;
-    }
+async function snapshotCookies() {
+    baselineSet.clear();
+    const all = await chrome.cookies.getAll({});
+    for (const c of all) baselineSet.add(keyOf(c));
 }
 
-/* restore persisted block-state on (re)load */
-chrome.storage.sync.get("blockNewCookies", d =>
-    updateCookieBlock(!!d.blockNewCookies));
+/* install / remove block mode */
+function updateCookieBlock(enabled) {
+    /* turn OFF */
+    if (!enabled) {
+        if (stripHdrL) chrome.webRequest.onHeadersReceived.removeListener(stripHdrL);
+        if (killCookieL) chrome.cookies.onChanged.removeListener(killCookieL);
+        stripHdrL = killCookieL = null;
+        baselineSet.clear();
+        console.info("[BlockNewCookies] disabled");
+        return;
+    }
+    /* already ON? */
+    if (stripHdrL) return;
 
-/* ── message bridge ────────────────────────────────────────────────── */
+    snapshotCookies().then(() =>
+        console.info(`[BlockNewCookies] enabled — baseline=${baselineSet.size}`)
+    );
 
+    /* 1) strip Set-Cookie headers (log each blocked cookie) */
+    stripHdrL = (details) => {
+        const kept = [];
+        for (const h of details.responseHeaders) {
+            if (h.name.toLowerCase() !== "set-cookie") {
+                kept.push(h);
+                continue;
+            }
+            const first = (h.value || "").split(";")[0];
+            const cname = first.split("=")[0].trim() || "(unnamed)";
+            console.info("[BlockNewCookies] header-block",
+                cname, "←", details.url);
+            /* header is dropped */
+        }
+        return { responseHeaders: kept };
+    };
+    chrome.webRequest.onHeadersReceived.addListener(
+        stripHdrL,
+        { urls: ["<all_urls>"] },
+        ["blocking", "responseHeaders", "extraHeaders"]
+    );
+
+    /* 2) delete brand-new cookies written at runtime (log each) */
+    killCookieL = ({ removed, cookie, cause }) => {
+        if (removed) return;                     // ignore deletions
+        const k = keyOf(cookie);
+        if (baselineSet.has(k)) return;          // existed before block was enabled
+        chrome.cookies.remove({
+            url: (cookie.secure ? "https://" : "http://") +
+                cookie.domain.replace(/^\./, "") + cookie.path,
+            name: cookie.name
+        });
+        console.info("[BlockNewCookies] runtime-block",
+            `${cookie.name}@${cookie.domain}${cookie.path}`, "cause:", cause);
+    };
+    chrome.cookies.onChanged.addListener(killCookieL);
+}
+
+/* restore block state on SW start */
+chrome.storage.sync.get("blockNewCookies",
+    ({ blockNewCookies }) => updateCookieBlock(!!blockNewCookies));
+
+/* ── main message bridge ───────────────────────────────────────────── */
 chrome.runtime.onMessage.addListener((m, _, send) => {
     (async () => {
         try {
-            if (m.action === "applyProxyConfig") await applyProxy(m.cfg);
-            else if (m.action === "clearProxyConfig") await clearProxy();
-            else if (m.action === "setWebRTCPolicy") await setRTC(m.policy);
-            else if (m.action === "setBlockCookies") updateCookieBlock(!!m.enabled);
-            else if (m.action === "exportCookies") {
-                const list = await new Promise(r => chrome.cookies.getAll({}, r));
-                const data = 'data:application/json;base64,' +
-                    btoa(unescape(encodeURIComponent(JSON.stringify(list))));
-                chrome.downloads.download({
-                    url: data,
-                    filename: `cookies_${Date.now()}.json`
-                });
-            }
-            else if (m.action === "importCookies") {
-                const jar = JSON.parse(m.json); let ok = 0;
-                for (const c of jar) if (c.name && c.value && c.domain) {
-                    try {
-                        await G({
-                            url: (c.secure ? 'https://' : 'http://') +
-                                c.domain.replace(/^\./, '') + (c.path || '/'),
-                            name: c.name,
-                            value: c.value,
-                            domain: c.domain,
-                            path: c.path || '/',
-                            secure: !!c.secure,
-                            httpOnly: !!c.httpOnly,
-                            sameSite: m.mode === 'cross' ? 'no_restriction' : c.sameSite,
-                            expirationDate: c.expirationDate ??
-                                (c.expires ? Number(c.expires) : undefined)
-                        });
-                        ok++;
-                    } catch { }
+            switch (m.action) {
+                case "applyProxyConfig": await applyProxy(m.cfg); break;
+                case "clearProxyConfig": await clearProxy(); break;
+                case "setWebRTCPolicy": await setRTC(m.policy); break;
+                case "setBlockCookies": updateCookieBlock(!!m.enabled); break;
+
+                /* ------- cookie export ------------------------------------- */
+                case "exportCookies": {
+                    const list = await chrome.cookies.getAll({});
+                    const data = 'data:application/json;base64,' +
+                        btoa(unescape(encodeURIComponent(JSON.stringify(list))));
+                    chrome.downloads.download({
+                        url: data, filename: `cookies_${Date.now()}.json`
+                    });
+                    break;
                 }
-            }
-            else if (m.action === "importHarCookies") {
-                const h = JSON.parse(m.har),
-                    e = h?.log?.entries || [],
-                    en = e[m.entryIndex];
-                if (en) {
-                    const jar = en[m.source]?.cookies || [];
-                    for (const c of jar) {
-                        await G({
-                            url: (c.secure ? 'https://' : 'http://') +
-                                (c.domain || new URL(en.request.url).hostname)
-                                    .replace(/^\./, '') + (c.path || '/'),
-                            name: c.name,
-                            value: c.value,
-                            domain: c.domain,
-                            path: c.path || '/',
-                            secure: !!c.secure,
-                            httpOnly: !!c.httpOnly,
-                            expirationDate: c.expires ? Number(c.expires) : undefined
-                        });
+
+                /* ------- JSON cookie import -------------------------------- */
+                case "importCookies": {
+                    const jar = JSON.parse(m.json);
+                    for (const c of jar) if (c.name && c.value && c.domain) {
+                        try {
+                            await G({
+                                url: (c.secure ? "https://" : "http://") +
+                                    c.domain.replace(/^\./, "") + (c.path || "/"),
+                                name: c.name, value: c.value,
+                                domain: c.domain, path: c.path || "/",
+                                secure: !!c.secure, httpOnly: !!c.httpOnly,
+                                sameSite: m.mode === "cross" ? "no_restriction" : c.sameSite,
+                                expirationDate: c.expirationDate ??
+                                    (c.expires ? Number(c.expires) : undefined)
+                            });
+                        } catch { }
                     }
+                    break;
+                }
+
+                /* ------- HAR cookie import --------------------------------- */
+                case "importHarCookies": {
+                    const h = JSON.parse(m.har);
+                    const en = h?.log?.entries?.[m.entryIndex];
+                    if (en) {
+                        const jar = en[m.source]?.cookies || [];
+                        for (const c of jar) {
+                            await G({
+                                url: (c.secure ? "https://" : "http://") +
+                                    (c.domain || new URL(en.request.url).hostname)
+                                        .replace(/^\./, "") + (c.path || "/"),
+                                name: c.name, value: c.value,
+                                domain: c.domain, path: c.path || "/",
+                                secure: !!c.secure, httpOnly: !!c.httpOnly,
+                                expirationDate: c.expires ? Number(c.expires) : undefined
+                            });
+                        }
+                    }
+                    break;
                 }
             }
-        } catch (_) { }
-        send();
+        } catch (err) {
+            console.error("[background] error:", err);
+        }
+        send();          // async response
     })();
-    return true;   // keep channel open
+    return true;
 });
