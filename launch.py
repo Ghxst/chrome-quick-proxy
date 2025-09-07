@@ -5,7 +5,6 @@ import tempfile
 from pathlib import Path
 
 p = Path(__file__).resolve().parent.joinpath("extension")
-t = tempfile.mkdtemp()
 
 def build_feats(insecure=False):
     feats = [
@@ -25,11 +24,11 @@ def build_feats(insecure=False):
 
     return feats
 
-def build_flags(insecure=False):
+def build_flags(user_data_dir, insecure=False):
     feats = build_feats(insecure)
 
     flags = [
-        f"--user-data-dir={t}",
+        f"--user-data-dir={user_data_dir}",
         f"--load-extension={p}",
         "--no-first-run",
         f"--disable-features={','.join(feats)}",
@@ -49,15 +48,16 @@ def build_flags(insecure=False):
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument(
-    "--insecure",
-    action="store_true"
-)
+parser.add_argument("--insecure", action="store_true")
+parser.add_argument("--bin", default="chrome")
+parser.add_argument("--user-data-dir")
+
+args = parser.parse_args()
+
+user_data_dir = args.user_data_dir or tempfile.mkdtemp()
 
 subprocess.Popen(
-    ["chrome"] + build_flags(
-        parser.parse_args().insecure,
-    ),
+    [args.bin] + build_flags(user_data_dir, args.insecure),
     stdout=subprocess.DEVNULL,
     stderr=subprocess.DEVNULL,
 )
